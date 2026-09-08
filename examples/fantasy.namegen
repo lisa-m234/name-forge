@@ -1,0 +1,15 @@
+# fantasy.namegen - example grammar for name-forge
+#
+# generation always starts at the rule named "root". a line starting with
+# '|' continues the alternatives of the rule directly above it.
+
+root = given " " family
+     | given " the " epithet
+
+given = "Ael" | "Brend" | "Cael" | "Doran" | "Elowen" | "Fenris" | "Gwyn"
+      | "Hollis" | "Isolde" | "Joren" | "Kestrel" | "Liora"
+
+family = "Ashborn" | "Blackwood" | "Cindermoor" | "Duskwalker" | "Emberfall"
+       | "Frostvale" | "Grimshaw" | "Hollowmere"
+
+epithet = "Bold" | "Grey" | "Ironhearted" | "Nameless" | "Wanderer" | "Wise"
