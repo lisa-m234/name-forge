@@ -35,6 +35,17 @@ epithet = "Bold" | "Grey" | "Ironhearted" | "Nameless" | "Wanderer" | "Wise"
 
 Running this might produce `Kestrel Hollowmere` or `Isolde the Ironhearted`.
 
+Any alternative can end with `:<n>` to weight it relative to its siblings. An
+alternative with no weight suffix has a weight of 1, so plain grammars are
+unaffected:
+
+```
+rarity = "common":9 | "uncommon":3 | "rare"
+```
+
+Here `"common"` is picked nine times as often as `"rare"`, and `"uncommon"`
+three times as often.
+
 ## CLI usage
 
 ```

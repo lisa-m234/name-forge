@@ -84,6 +84,30 @@ func TestTokenizeLineUnknownEscape(t *testing.T) {
 	}
 }
 
+func TestTokenizeLineWeightSuffix(t *testing.T) {
+	toks, err := tokenizeLine(`given = "Ada":3 | "Grace"`, 1, "")
+	if err != nil {
+		t.Fatalf("tokenizeLine returned error: %v", err)
+	}
+	want := []token{
+		{tokIdent, "given", 1},
+		{tokEquals, "=", 7},
+		{tokString, "Ada", 9},
+		{tokColon, ":", 14},
+		{tokNumber, "3", 15},
+		{tokPipe, "|", 17},
+		{tokString, "Grace", 19},
+	}
+	if len(toks) != len(want) {
+		t.Fatalf("got %d tokens, want %d: %+v", len(toks), len(want), toks)
+	}
+	for i, w := range want {
+		if toks[i] != w {
+			t.Errorf("token %d = %+v, want %+v", i, toks[i], w)
+		}
+	}
+}
+
 func TestParseValidGrammar(t *testing.T) {
 	const src = `
 root = given " " family
@@ -123,6 +147,37 @@ epithet = "Analyst" | "Wise"
 
 	if got := len(g.rules["given"]); got != 2 {
 		t.Errorf("got %d alternatives for given, want 2", got)
+	}
+}
+
+func TestParseWeightedAlternatives(t *testing.T) {
+	g, err := Parse(`given = "Ada":3 | "Grace" | "Rosalind":2`)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	alts := g.rules["given"]
+	if len(alts) != 3 {
+		t.Fatalf("got %d alternatives, want 3", len(alts))
+	}
+	wantWeights := []int{3, 1, 2}
+	for i, w := range wantWeights {
+		if alts[i].Weight != w {
+			t.Errorf("alternative %d weight = %d, want %d", i, alts[i].Weight, w)
+		}
+	}
+	if len(alts[0].Terms) != 1 || alts[0].Terms[0].Text != "Ada" {
+		t.Errorf("alternative 0 terms = %+v, want just the literal %q", alts[0].Terms, "Ada")
+	}
+}
+
+func TestParseWeightMustBePositive(t *testing.T) {
+	_, err := Parse(`given = "Ada":0`)
+	var perr *ParseError
+	if !errors.As(err, &perr) {
+		t.Fatalf("Parse returned %v, want *ParseError", err)
+	}
+	if !strings.Contains(perr.Msg, "positive integer") {
+		t.Errorf("Msg = %q, want it to mention a positive integer", perr.Msg)
 	}
 }
 

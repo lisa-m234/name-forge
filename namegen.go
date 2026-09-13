@@ -74,7 +74,7 @@ func (g *Generator) expand(rule string, sb *strings.Builder, depth int) error {
 		return fmt.Errorf("namegen: rule %q recurses too deeply (possible cycle)", rule)
 	}
 	alts := g.grammar.rules[rule]
-	alt := alts[g.rand.Intn(len(alts))]
+	alt := pickAlternative(alts, g.rand)
 	for _, t := range alt.Terms {
 		switch t.Kind {
 		case termLiteral:
@@ -86,4 +86,24 @@ func (g *Generator) expand(rule string, sb *strings.Builder, depth int) error {
 		}
 	}
 	return nil
+}
+
+// pickAlternative chooses one of alts at random, favoring higher-weight
+// alternatives in proportion to their weight. Most grammars leave every
+// alternative at the default weight of 1, which makes this a plain uniform
+// choice.
+func pickAlternative(alts []Alternative, rnd *rand.Rand) Alternative {
+	total := 0
+	for _, alt := range alts {
+		total += alt.Weight
+	}
+	n := rnd.Intn(total)
+	for _, alt := range alts {
+		if n < alt.Weight {
+			return alt
+		}
+		n -= alt.Weight
+	}
+	// Unreachable as long as every alternative's weight is at least 1.
+	return alts[len(alts)-1]
 }

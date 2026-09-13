@@ -2,6 +2,7 @@ package namegen
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -52,9 +53,13 @@ type Term struct {
 	Pos  Position
 }
 
-// Alternative is one of the possible expansions of a rule.
+// Alternative is one of the possible expansions of a rule. Weight controls
+// how often it is chosen relative to its siblings: an alternative written
+// with no ":<n>" suffix has a weight of 1, so a plain grammar behaves exactly
+// as before weights existed.
 type Alternative struct {
-	Terms []Term
+	Terms  []Term
+	Weight int
 }
 
 // Grammar is a parsed, validated set of name rules.
@@ -69,6 +74,8 @@ const (
 	tokString
 	tokEquals
 	tokPipe
+	tokColon
+	tokNumber
 )
 
 type token struct {
@@ -212,6 +219,21 @@ func splitAndParseAlternatives(toks []token, lineNo int, source string) ([]Alter
 }
 
 func parseAlternative(toks []token, lineNo int, source string) (Alternative, error) {
+	weight := 1
+	if n := len(toks); n >= 2 && toks[n-2].kind == tokColon && toks[n-1].kind == tokNumber {
+		numTok := toks[n-1]
+		val, err := strconv.Atoi(numTok.text)
+		if err != nil || val <= 0 {
+			return Alternative{}, &ParseError{
+				Pos:    Position{lineNo, numTok.col},
+				Msg:    fmt.Sprintf("alternative weight must be a positive integer, got %q", numTok.text),
+				Source: source,
+			}
+		}
+		weight = val
+		toks = toks[:n-2]
+	}
+
 	if len(toks) == 0 {
 		return Alternative{}, &ParseError{
 			Pos:    Position{lineNo, 1},
@@ -234,7 +256,7 @@ func parseAlternative(toks []token, lineNo int, source string) (Alternative, err
 			}
 		}
 	}
-	return Alternative{Terms: terms}, nil
+	return Alternative{Terms: terms, Weight: weight}, nil
 }
 
 func tokenizeLine(line string, lineNo int, source string) ([]token, error) {
@@ -260,6 +282,18 @@ func tokenizeLine(line string, lineNo int, source string) ([]token, error) {
 		case c == '|':
 			toks = append(toks, token{tokPipe, "|", col})
 			i++
+
+		case c == ':':
+			toks = append(toks, token{tokColon, ":", col})
+			i++
+
+		case unicode.IsDigit(c):
+			start := i
+			i++
+			for i < len(runes) && unicode.IsDigit(runes[i]) {
+				i++
+			}
+			toks = append(toks, token{tokNumber, string(runes[start:i]), start + 1})
 
 		case c == '"':
 			start := i

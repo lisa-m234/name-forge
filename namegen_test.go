@@ -130,6 +130,30 @@ func TestGenerateManyZero(t *testing.T) {
 	}
 }
 
+func TestGenerateRespectsWeights(t *testing.T) {
+	gen, err := New(`root = "common":9 | "rare"`)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	gen.Seed(1)
+
+	counts := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		name, err := gen.Generate()
+		if err != nil {
+			t.Fatalf("Generate returned error: %v", err)
+		}
+		counts[name]++
+	}
+
+	if counts["rare"] == 0 {
+		t.Fatal("the weight-1 alternative never appeared in 1000 draws")
+	}
+	if counts["common"] <= counts["rare"]*3 {
+		t.Errorf("counts = %v, want \"common\" (weight 9) to appear well more often than \"rare\" (weight 1)", counts)
+	}
+}
+
 func TestGenerateDetectsUnboundedRecursion(t *testing.T) {
 	gen, err := New(`root = "a" root`)
 	if err != nil {
