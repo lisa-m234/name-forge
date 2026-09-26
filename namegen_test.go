@@ -154,16 +154,33 @@ func TestGenerateRespectsWeights(t *testing.T) {
 	}
 }
 
-func TestGenerateDetectsUnboundedRecursion(t *testing.T) {
-	gen, err := New(`root = "a" root`)
+func TestNewRejectsUnconditionalRecursion(t *testing.T) {
+	// root's only alternative depends on root, so it can never bottom out.
+	// This is now caught by Parse rather than surfacing as a runtime error.
+	_, err := New(`root = "a" root`)
+	var perr *ParseError
+	if !errors.As(err, &perr) {
+		t.Fatalf("New returned %v, want a *ParseError", err)
+	}
+	if !strings.Contains(perr.Msg, "can never terminate") {
+		t.Errorf("Msg = %q, want it to mention the rule can never terminate", perr.Msg)
+	}
+}
+
+func TestGenerateEnforcesMaxDepth(t *testing.T) {
+	// This grammar is legitimately recursive but always terminates, so Parse
+	// accepts it. expand still needs its own runtime depth cap, in case a
+	// specific seed happens to pick the recursive branch many times in a
+	// row; this exercises that cap directly rather than hoping a seed does.
+	gen, err := New(`root = "a" | "b" root`)
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
 	}
-	gen.Seed(1)
 
-	_, err = gen.Generate()
+	var sb strings.Builder
+	err = gen.expand("root", &sb, maxDepth+1)
 	if err == nil {
-		t.Fatal("Generate returned no error for a rule that always recurses")
+		t.Fatal("expand returned no error past maxDepth")
 	}
 	if !strings.Contains(err.Error(), "recurses too deeply") {
 		t.Errorf("error = %v, want it to mention excessive recursion", err)

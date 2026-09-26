@@ -91,6 +91,7 @@ type token struct {
 func Parse(source string) (*Grammar, error) {
 	g := &Grammar{rules: map[string][]Alternative{}}
 	defLine := map[string]int{}
+	defPos := map[string]Position{}
 
 	lines := strings.Split(source, "\n")
 	currentRule := ""
@@ -163,6 +164,7 @@ func Parse(source string) (*Grammar, error) {
 
 		g.rules[name] = alts
 		defLine[name] = lineNo
+		defPos[name] = Position{lineNo, toks[0].col}
 		currentRule = name
 		haveCurrent = true
 	}
@@ -191,7 +193,68 @@ func Parse(source string) (*Grammar, error) {
 		}
 	}
 
+	if name, ok := firstUnterminatingRule(g.rules, defLine); ok {
+		return nil, &ParseError{
+			Pos:    defPos[name],
+			Msg:    fmt.Sprintf("rule %q can never terminate: every alternative depends, directly or indirectly, on itself with no non-recursive alternative to stop the recursion", name),
+			Source: source,
+		}
+	}
+
 	return g, nil
+}
+
+// firstUnterminatingRule finds a rule that can never bottom out into a
+// finite string, i.e. every one of its alternatives requires expanding a
+// rule that (transitively) requires expanding it again. This is a stronger
+// property than "self-referential": a rule is allowed to reference itself as
+// long as some alternative eventually reaches a base case, since that is how
+// recursive patterns like nested titles are written.
+//
+// It works by computing, via fixpoint, the set of rules that have at least
+// one alternative built entirely from terminating rules (a plain literal
+// counts as terminating on its own). Any rule left out of that set once the
+// fixpoint stops growing has no such alternative. Of those, the one defined
+// earliest in the source is returned, so the error points at wherever the
+// grammar author would naturally start reading.
+func firstUnterminatingRule(rules map[string][]Alternative, defLine map[string]int) (string, bool) {
+	terminates := map[string]bool{}
+	for changed := true; changed; {
+		changed = false
+		for name, alts := range rules {
+			if terminates[name] {
+				continue
+			}
+			for _, alt := range alts {
+				ok := true
+				for _, t := range alt.Terms {
+					if t.Kind == termRef && !terminates[t.Text] {
+						ok = false
+						break
+					}
+				}
+				if ok {
+					terminates[name] = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	worst := ""
+	for name := range rules {
+		if terminates[name] {
+			continue
+		}
+		if worst == "" || defLine[name] < defLine[worst] {
+			worst = name
+		}
+	}
+	if worst == "" {
+		return "", false
+	}
+	return worst, true
 }
 
 // splitAndParseAlternatives splits a token run on top-level '|' tokens and

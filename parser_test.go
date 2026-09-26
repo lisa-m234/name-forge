@@ -230,6 +230,18 @@ func TestParseErrors(t *testing.T) {
 			wantMsg: "unexpected character",
 			line:    1,
 		},
+		{
+			name:    "direct self cycle",
+			src:     "root = root",
+			wantMsg: "can never terminate",
+			line:    1,
+		},
+		{
+			name:    "mutual cycle",
+			src:     "root = a\na = b\nb = a",
+			wantMsg: "can never terminate",
+			line:    1,
+		},
 	}
 
 	for _, c := range cases {
@@ -246,6 +258,15 @@ func TestParseErrors(t *testing.T) {
 				t.Errorf("Msg = %q, want it to contain %q", perr.Msg, c.wantMsg)
 			}
 		})
+	}
+}
+
+func TestParseAllowsRecursionWithABaseCase(t *testing.T) {
+	// root refers to itself, but the first alternative is a base case, so
+	// this must not be mistaken for an unterminating cycle.
+	_, err := Parse(`root = "a" | "b" root`)
+	if err != nil {
+		t.Fatalf("Parse returned error for legitimately recursive grammar: %v", err)
 	}
 }
 

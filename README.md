@@ -10,6 +10,9 @@ It also tries hard to be pleasant to author grammars for. Every syntax and
 reference error comes back with a line number, a column number, and the
 offending source line with a caret pointing at the problem, instead of a
 bare "parse error" or a panic three stack frames deep in generation code.
+Rules are allowed to reference themselves for recursive patterns, but if a
+rule has no alternative that can ever bottom out, that is reported at parse
+time too, rather than as a stack of recursion errors during generation.
 
 ## Grammar format
 

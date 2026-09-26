@@ -13,10 +13,11 @@ import (
 	"time"
 )
 
-// maxDepth guards against grammars whose rules reference each other in a
-// cycle (a = b, b = a). Parse cannot catch every cycle cheaply, since a rule
-// is allowed to reference itself for recursive patterns like nested titles,
-// so the check is deferred to generation time.
+// maxDepth guards against grammars that are structurally fine (Parse has
+// already confirmed every rule has some path to a base case) but happen to
+// pick their recursive alternative many times in a row at random. That is
+// astronomically unlikely for any reasonable grammar, but it costs nothing
+// to cap it rather than let a pathological seed run forever.
 const maxDepth = 200
 
 // Generator produces names from a parsed Grammar.
