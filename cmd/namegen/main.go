@@ -12,6 +12,7 @@ import (
 func main() {
 	n := flag.Int("n", 1, "number of names to generate")
 	seed := flag.Int64("seed", 0, "random seed; 0 picks a seed from the current time")
+	check := flag.Bool("check", false, "parse the grammar and report errors without generating names")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: namegen [flags] <grammar-file>\n\n")
 		flag.PrintDefaults()
@@ -35,6 +36,12 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
 		os.Exit(1)
+	}
+	if *check {
+		// Stay quiet on stdout apart from the confirmation so the exit
+		// status and one line are all a script or editor hook has to read.
+		fmt.Printf("%s: ok\n", path)
+		return
 	}
 	if *seed != 0 {
 		gen.Seed(*seed)

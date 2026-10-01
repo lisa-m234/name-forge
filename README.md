@@ -69,6 +69,14 @@ Pass `-seed` for reproducible output:
 go run ./cmd/namegen -n 3 -seed 42 examples/fantasy.namegen
 ```
 
+To validate a grammar without generating anything, use `-check`. It prints
+`<file>: ok` and exits 0 if the grammar parses, or prints the line and column
+error and exits 1 if it does not:
+
+```
+go run ./cmd/namegen -check examples/fantasy.namegen
+```
+
 ## Library usage
 
 ```go
